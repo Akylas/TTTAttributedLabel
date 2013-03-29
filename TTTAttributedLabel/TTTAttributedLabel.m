@@ -767,13 +767,23 @@ static inline NSAttributedString * NSAttributedStringBySettingColorFromContext(N
 #pragma mark - TTTAttributedLabel
 
 - (void)setText:(id)text {
-    if ([text isKindOfClass:[NSString class]]) {
-        [self setText:text afterInheritingLabelAttributesAndConfiguringWithBlock:nil];
+    if (text == nil) {
+        [super setText:nil];
+        self.attributedText = nil;
         return;
     }
     
-    self.attributedText = text;
-    self.activeLink = nil;
+    if ([text isKindOfClass:[NSString class]]) {
+        if (self.dataDetectorTypes != UIDataDetectorTypeNone) {
+            [self setText:text afterInheritingLabelAttributesAndConfiguringWithBlock:nil];
+            return;
+        }
+        self.attributedText = nil;
+        [super setText:text];
+        return;
+    }
+    
+    self.attributedText = (NSAttributedString*)text;
 
     self.links = [NSArray array];
     if (self.attributedText && self.dataDetectorTypes != UIDataDetectorTypeNone) {
@@ -876,13 +886,16 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
     textSize = CGSizeMake(ceilf(textSize.width), ceilf(textSize.height)); // Fix for iOS 4, CTFramesetterSuggestFrameSizeWithConstraints sometimes returns fractional sizes
     
     if (textSize.height < textRect.size.height) {
+        CGFloat heightChange = (textRect.size.height - textSize.height);
         CGFloat yOffset = 0.0f;
         switch (self.verticalAlignment) {
             case TTTAttributedLabelVerticalAlignmentCenter:
                 yOffset = floorf((bounds.size.height - textSize.height) / 2.0f);
+                yOffset = floorf((textRect.size.height - textSize.height) / 2.0f);
                 break;
             case TTTAttributedLabelVerticalAlignmentBottom:
                 yOffset = bounds.size.height - textSize.height;
+                yOffset = textRect.size.height - textSize.height;
                 break;
             case TTTAttributedLabelVerticalAlignmentTop:
             default:
@@ -890,6 +903,7 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
         }
         
         textRect.origin.y += yOffset;
+        textRect.size = CGSizeMake(textRect.size.width, textRect.size.height - heightChange + yOffset);
     }
     
     return textRect;
@@ -1004,6 +1018,7 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
 - (void)touchesBegan:(NSSet *)touches
            withEvent:(UIEvent *)event
 {
+    [self.delegate processTouchesBegan:touches withEvent:event];
     UITouch *touch = [touches anyObject];
     
     self.activeLink = [self linkAtPoint:[touch locationInView:self]];
@@ -1016,6 +1031,7 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
 - (void)touchesMoved:(NSSet *)touches
            withEvent:(UIEvent *)event
 {
+    [self.delegate processTouchesMoved:touches withEvent:event];
     if (self.activeLink) {
         UITouch *touch = [touches anyObject];
         
@@ -1030,6 +1046,7 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
 - (void)touchesEnded:(NSSet *)touches
            withEvent:(UIEvent *)event
 {
+    [self.delegate processTouchesEnded:touches withEvent:event];
     if (self.activeLink) {
         NSTextCheckingResult *result = self.activeLink;
         self.activeLink = nil;
@@ -1078,6 +1095,7 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
 - (void)touchesCancelled:(NSSet *)touches
                withEvent:(UIEvent *)event
 {
+    [self.delegate processTouchesCancelled:touches withEvent:event];
     if (self.activeLink) {
         self.activeLink = nil;
     } else {
