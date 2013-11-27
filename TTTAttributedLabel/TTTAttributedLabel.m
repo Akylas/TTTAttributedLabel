@@ -295,7 +295,7 @@ static inline NSAttributedString * NSAttributedStringBySettingColorFromContext(N
 #pragma mark -
 
 - (void)setAttributedText:(NSAttributedString *)text {
-    if ([text isEqualToAttributedString:_attributedText]) {
+    if (text == _attributedText || [text isEqualToAttributedString:_attributedText]) {
         return;
     }
     
@@ -795,7 +795,7 @@ static inline NSAttributedString * NSAttributedStringBySettingColorFromContext(N
     self.attributedText = (NSAttributedString*)text;
 
     self.links = [NSArray array];
-    if (self.attributedText && self.dataDetectorTypes) {
+    if (self.dataDetectorTypes && self.attributedText) {
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
             NSArray *results = [self.dataDetector matchesInString:[text string] options:0 range:NSMakeRange(0, [text length])];
             if ([results count] > 0) {
@@ -872,7 +872,7 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
     [super setTextColor:textColor];
 
     // Redraw to allow any ColorFromContext attributes a chance to update
-    if (textColor != oldTextColor) {
+    if (self.attributedText && textColor != oldTextColor) {
         [self setNeedsFramesetter];
         [self setNeedsDisplay];
     }
@@ -881,7 +881,7 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
 - (CGRect)textRectForBounds:(CGRect)bounds
      limitedToNumberOfLines:(NSInteger)numberOfLines
 {
-    if (!self.attributedText) {
+    if (_attributedText == nil) {
         return [super textRectForBounds:bounds limitedToNumberOfLines:numberOfLines];
     }
     
@@ -914,7 +914,7 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
 
 
 - (void)drawTextInRect:(CGRect)rect {
-    if (!self.attributedText) {
+    if (_attributedText == nil) {
         CGRect textRect = [super textRectForBounds:rect limitedToNumberOfLines:self.numberOfLines];
         if (textRect.size.height < rect.size.height) {
             CGFloat yOffset = 0.0f;
