@@ -189,6 +189,7 @@ extern NSString * const kTTTBackgroundCornerRadiusAttributeName;
  
  */
 @property (nonatomic, assign) UIEdgeInsets textInsets;
+@property (nonatomic, assign) UIEdgeInsets viewInsets;
 
 /**
  The vertical text alignment for the label, for when the frame size is greater than the text rect size. The vertical alignment is `TTTAttributedLabelVerticalAlignmentCenter` by default.
@@ -214,6 +215,7 @@ extern NSString * const kTTTBackgroundCornerRadiusAttributeName;
 @property (nonatomic, strong) NSString *strokeColorAttributeProperty;
 @property (nonatomic, strong) NSString *strokeWidthAttributeProperty;
 @property (nonatomic, strong) NSString *cornerRadiusAttributeProperty;
+@property (nonatomic, strong) NSString *paddingAttributeProperty;
 
 ///----------------------------------
 /// @name Setting the Text Attributes

@@ -291,6 +291,7 @@ static inline NSAttributedString * NSAttributedStringBySettingColorFromContext(N
     NSString *_strokeColorAttributeProperty;
     NSString *_strokeWidthAttributeProperty;
     NSString *_cornerRadiusAttributeProperty;
+    NSString *_paddingAttributeProperty;
 }
 
 @dynamic text;
@@ -312,6 +313,7 @@ static inline NSAttributedString * NSAttributedStringBySettingColorFromContext(N
     self.multipleTouchEnabled = NO;
         
     self.textInsets = UIEdgeInsetsZero;
+    self.viewInsets = UIEdgeInsetsZero;
     
     self.links = [NSArray array];
 
@@ -351,6 +353,7 @@ static inline NSAttributedString * NSAttributedStringBySettingColorFromContext(N
     self.strokeColorAttributeProperty = kTTTBackgroundStrokeColorAttributeName;
     self.strokeWidthAttributeProperty = kTTTBackgroundLineWidthAttributeName;
     self.cornerRadiusAttributeProperty = kTTTBackgroundCornerRadiusAttributeName;
+    self.paddingAttributeProperty = kTTTBackgroundFillPaddingAttributeName;
 }
 
 - (void)dealloc {
@@ -614,14 +617,15 @@ static inline NSAttributedString * NSAttributedStringBySettingColorFromContext(N
        attributedString:(NSAttributedString *)attributedString
               textRange:(CFRange)textRange
                  inRect:(CGRect)rect
+               textRect:(CGRect)textRect
                 context:(CGContextRef)c
 {
     CGMutablePathRef path = CGPathCreateMutable();
-    CGPathAddRect(path, NULL, rect);
+    CGPathAddRect(path, NULL, textRect);
     CTFrameRef frame = CTFramesetterCreateFrame(framesetter, textRange, path, NULL);    
     
-    [self drawBackground:frame inRect:rect context:c];
-    
+    [self drawBackground:frame inRect:rect textRect:textRect context:c];
+
     CFArrayRef lines = CTFrameGetLines(frame);
     NSInteger numberOfLines = self.numberOfLines > 0 ? MIN(self.numberOfLines, CFArrayGetCount(lines)) : CFArrayGetCount(lines);
     BOOL truncateLastLine = (self.lineBreakMode == TTTLineBreakByTruncatingHead || self.lineBreakMode == TTTLineBreakByTruncatingMiddle || self.lineBreakMode == TTTLineBreakByTruncatingTail);
@@ -728,7 +732,7 @@ static inline NSAttributedString * NSAttributedStringBySettingColorFromContext(N
         }
     }
     
-    [self drawStrike:frame inRect:rect context:c];
+    [self drawStrike:frame inRect:rect textRect:textRect context:c];
         
     CFRelease(frame);
     CFRelease(path);    
@@ -744,17 +748,17 @@ static inline NSAttributedString * NSAttributedStringBySettingColorFromContext(N
 
 - (void)drawBackground:(CTFrameRef)frame
                 inRect:(CGRect)rect
+              textRect:(CGRect)textRect
                context:(CGContextRef)c
 {
+    CGContextSaveGState(c);
+    CGContextTranslateCTM(c, -_viewInsets.left, -_viewInsets.top);
     NSArray *lines = (__bridge NSArray *)CTFrameGetLines(frame);
     CGPoint origins[[lines count]];
     CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), origins);
     
     // Compensate for y-offset of text rect from vertical positioning
-    CGFloat yOffset = 0.0f;
-    if (self.verticalAlignment != TTTAttributedLabelVerticalAlignmentTop) {
-        yOffset -= [self textRectForBounds:self.bounds limitedToNumberOfLines:self.numberOfLines].origin.y;
-    }
+    CGFloat yOffset = rect.origin.y - textRect.origin.y + _viewInsets.top;
     
     CFIndex lineIndex = 0;
     for (id line in lines) {
@@ -766,11 +770,11 @@ static inline NSAttributedString * NSAttributedStringBySettingColorFromContext(N
         
         for (id glyphRun in (__bridge NSArray *)CTLineGetGlyphRuns((__bridge CTLineRef)line)) {
             NSDictionary *attributes = (__bridge NSDictionary *)CTRunGetAttributes((__bridge CTRunRef) glyphRun);
-            CGColorRef strokeColor = (__bridge CGColorRef)[attributes objectForKey:_strokeColorAttributeProperty];
+           CGColorRef strokeColor = (__bridge CGColorRef)[attributes objectForKey:_strokeColorAttributeProperty];
             CGColorRef fillColor = ((UIColor*)[attributes objectForKey:NSBackgroundColorAttributeName]).CGColor;
-            UIEdgeInsets fillPadding = [[attributes objectForKey:kTTTBackgroundFillPaddingAttributeName] UIEdgeInsetsValue];
+            UIEdgeInsets fillPadding = [[attributes objectForKey:_paddingAttributeProperty] UIEdgeInsetsValue];
             CGFloat cornerRadius = [[attributes objectForKey:_cornerRadiusAttributeProperty] floatValue];
-            CGFloat lineWidth = [self NSNumberFloat:[attributes objectForKey:_strokeWidthAttributeProperty] withDefault:1.0f];
+            CGFloat lineWidth = [self NSNumberFloat:[attributes objectForKey:_strokeWidthAttributeProperty] withDefault:0.0f];
 
             if (strokeColor || fillColor) {
                 CGRect runBounds = CGRectZero;
@@ -781,16 +785,16 @@ static inline NSAttributedString * NSAttributedStringBySettingColorFromContext(N
                 runBounds.size.height = runAscent + runDescent + fillPadding.top + fillPadding.bottom;
                 
                 CGFloat xOffset = CTLineGetOffsetForStringIndex((__bridge CTLineRef)line, CTRunGetStringRange((__bridge CTRunRef)glyphRun).location, NULL);
-                runBounds.origin.x = origins[lineIndex].x + rect.origin.x + xOffset - fillPadding.left;
-                runBounds.origin.y = origins[lineIndex].y + rect.origin.y + yOffset - fillPadding.bottom;
+                runBounds.origin.x = origins[lineIndex].x + textRect.origin.x + xOffset - fillPadding.left;
+                runBounds.origin.y = origins[lineIndex].y + textRect.origin.y + yOffset - fillPadding.bottom;
                 runBounds.origin.y -= runDescent;
                 
                 // Don't draw higlightedLinkBackground too far to the right
-                if (CGRectGetWidth(runBounds) > CGRectGetWidth(lineBounds)) {
-                    runBounds.size.width = CGRectGetWidth(lineBounds);
-                }
+//                if (CGRectGetWidth(runBounds) > CGRectGetWidth(lineBounds)) {
+//                    runBounds.size.width = CGRectGetWidth(lineBounds);
+//                }
                 
-                CGPathRef path = [[UIBezierPath bezierPathWithRoundedRect:CGRectInset(CGRectInset(runBounds, -1.0f, -3.0f), lineWidth, lineWidth) cornerRadius:cornerRadius] CGPath];
+                CGPathRef path = [[UIBezierPath bezierPathWithRoundedRect:CGRectMake(runBounds.origin.x+ lineWidth/2,runBounds.origin.y + lineWidth/2,  runBounds.size.width - lineWidth, runBounds.size.height +ceilf(runBounds.size.height/12.0f) +  1.0f - lineWidth) cornerRadius:cornerRadius] CGPath];
                 
                 CGContextSetLineJoin(c, kCGLineJoinRound);
                 
@@ -801,6 +805,7 @@ static inline NSAttributedString * NSAttributedStringBySettingColorFromContext(N
                 }
                 
                 if (strokeColor) {
+                    CGContextSetLineWidth(c, lineWidth);
                     CGContextSetStrokeColorWithColor(c, strokeColor);
                     CGContextAddPath(c, path);
                     CGContextStrokePath(c);
@@ -810,10 +815,12 @@ static inline NSAttributedString * NSAttributedStringBySettingColorFromContext(N
         
         lineIndex++;
     }
+    CGContextRestoreGState(c);
 }
 
 - (void)drawStrike:(CTFrameRef)frame
             inRect:(__unused CGRect)rect
+          textRect:(CGRect)textRect
            context:(CGContextRef)c
 {
     NSArray *lines = (__bridge NSArray *)CTFrameGetLines(frame);
@@ -1002,9 +1009,45 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
     }
 }
 
+- (CGSize)sizeThatFits:(CGSize)size {
+    if (_attributedText == nil) {
+        return [super sizeThatFits:size];
+    }
+    
+    CFRange rangeToSize = CFRangeMake(0, (CFIndex)[_attributedText length]);
+    CGSize constraints = CGSizeMake(size.width, TTTFLOAT_MAX);
+    
+    if (self.numberOfLines == 1) {
+        // If there is one line, the size that fits is the full width of the line
+        constraints = CGSizeMake(TTTFLOAT_MAX, TTTFLOAT_MAX);
+    } else if (self.numberOfLines > 0) {
+        // If the line count of the label more than 1, limit the range to size to the number of lines that have been set
+        CGMutablePathRef path = CGPathCreateMutable();
+        CGPathAddRect(path, NULL, CGRectMake(0.0f, 0.0f, constraints.width, TTTFLOAT_MAX));
+        CTFrameRef frame = CTFramesetterCreateFrame([self framesetter], CFRangeMake(0, 0), path, NULL);
+        CFArrayRef lines = CTFrameGetLines(frame);
+        
+        if (CFArrayGetCount(lines) > 0) {
+            NSInteger lastVisibleLineIndex = MIN(self.numberOfLines, CFArrayGetCount(lines)) - 1;
+            CTLineRef lastVisibleLine = CFArrayGetValueAtIndex(lines, lastVisibleLineIndex);
+            
+            CFRange rangeToLayout = CTLineGetStringRange(lastVisibleLine);
+            rangeToSize = CFRangeMake(0, rangeToLayout.location + rangeToLayout.length);
+        }
+        
+        CFRelease(frame);
+        CFRelease(path);
+    }
+    
+    CGSize suggestedSize = CTFramesetterSuggestFrameSizeWithConstraints([self framesetter], rangeToSize, NULL, constraints, NULL);
+    
+    return CGSizeMake(CGFloat_ceil(suggestedSize.width), CGFloat_ceil(suggestedSize.height));
+}
+
 - (CGRect)textRectForBounds:(CGRect)bounds
      limitedToNumberOfLines:(NSInteger)numberOfLines
 {
+    
     if (_attributedText == nil) {
         return [super textRectForBounds:bounds limitedToNumberOfLines:numberOfLines];
     }
@@ -1015,9 +1058,9 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
 
     // Adjust the text to be in the center vertically, if the text size is smaller than bounds
     CGSize textSize = CTFramesetterSuggestFrameSizeWithConstraints([self framesetter], CFRangeMake(0, (CFIndex)[self.attributedText length]), NULL, textRect.size, NULL);
-    textSize = CGSizeMake(CGFloat_ceil(textSize.width), CGFloat_ceil(textSize.height)); // Fix for iOS 4, CTFramesetterSuggestFrameSizeWithConstraints sometimes returns fractional sizes
+    textRect.size = CGSizeMake(CGFloat_ceil(textSize.width), CGFloat_ceil(textSize.height)); // Fix for iOS 4, CTFramesetterSuggestFrameSizeWithConstraints sometimes returns fractional sizes
     
-    if (textSize.height < textRect.size.height) {
+    if (textSize.height < bounds.size.height) {
         CGFloat yOffset = 0.0f;
         switch (self.verticalAlignment) {
             case TTTAttributedLabelVerticalAlignmentCenter:
@@ -1039,25 +1082,28 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
 
 - (void)drawTextInRect:(CGRect)rect {
     if (_attributedText == nil) {
-        CGRect textRect = [super textRectForBounds:rect limitedToNumberOfLines:self.numberOfLines];
-        if (textRect.size.height < rect.size.height) {
-            CGFloat yOffset = 0.0f;
+        CGRect rectWithPadding = UIEdgeInsetsInsetRect(rect, _viewInsets);
+        CGRect textRect = [super textRectForBounds:rectWithPadding limitedToNumberOfLines:self.numberOfLines];
+        CGFloat yOffset = 0.0f;
+        if (textRect.size.height < rectWithPadding.size.height) {
             switch (self.verticalAlignment) {
                 case TTTAttributedLabelVerticalAlignmentCenter:
-                    yOffset = floorf((rect.size.height - textRect.size.height) / 2.0f);
+                    yOffset = floorf((rectWithPadding.size.height - textRect.size.height) / 2.0f);
                     break;
                 case TTTAttributedLabelVerticalAlignmentBottom:
-                    yOffset = rect.size.height - textRect.size.height;
+                    yOffset = rectWithPadding.size.height - textRect.size.height;
                     break;
                 case TTTAttributedLabelVerticalAlignmentTop:
                 default:
                     break;
             }
-            
-            rect.origin.y = textRect.origin.y + yOffset;
-            rect.size.height = textRect.size.height;
+            rectWithPadding.size.height = textRect.size.height;
         }
-        [super drawTextInRect:rect];
+        CGContextRef c = UIGraphicsGetCurrentContext();
+        CGContextSaveGState(c); {
+            CGContextTranslateCTM(c, 0.0f, yOffset);
+            [super drawTextInRect:rectWithPadding];
+        } CGContextRestoreGState(c);
         return;
     }
         
@@ -1069,7 +1115,7 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
         CGSize maxSize = (self.numberOfLines > 1) ? CGSizeMake(TTTFLOAT_MAX, TTTFLOAT_MAX) : CGSizeZero;
         
         CGFloat textWidth = [self sizeThatFits:maxSize].width;
-        CGFloat availableWidth = self.frame.size.width * self.numberOfLines;
+        CGFloat availableWidth = (self.frame.size.width - _viewInsets.left - _viewInsets.right) * self.numberOfLines;
         if (self.numberOfLines > 1 && self.lineBreakMode == TTTLineBreakByWordWrapping) {
             textWidth *= kTTTLineBreakWordWrapTextWidthScalingFactor;
         }
@@ -1085,16 +1131,18 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
         CGContextSetTextMatrix(c, CGAffineTransformIdentity);
 
         // Inverts the CTM to match iOS coordinates (otherwise text draws upside-down; Mac OS's system is different)
+        CGRect rectWithPadding = UIEdgeInsetsInsetRect(rect, _viewInsets);
         CGContextTranslateCTM(c, 0.0f, rect.size.height);
         CGContextScaleCTM(c, 1.0f, -1.0f);
         
         CFRange textRange = CFRangeMake(0, (CFIndex)[self.attributedText length]);
 
         // First, get the text rect (which takes vertical centering into account)
-        CGRect textRect = [self textRectForBounds:rect limitedToNumberOfLines:self.numberOfLines];
+        CGRect textRect = [self textRectForBounds:rectWithPadding limitedToNumberOfLines:self.numberOfLines];
+        textRect.size.width = rectWithPadding.size.width;
 
         // CoreText draws it's text aligned to the bottom, so we move the CTM here to take our vertical offsets into account
-        CGContextTranslateCTM(c, rect.origin.x, rect.size.height - textRect.origin.y - textRect.size.height);
+        CGContextTranslateCTM(c, textRect.origin.x, rect.size.height - textRect.origin.y - textRect.size.height);
 
         // Second, trace the shadow before the actual text, if we have one
         if (self.shadowColor && !self.highlighted) {
@@ -1114,9 +1162,9 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
                 CFRelease(highlightFramesetter);
             }
             
-            [self drawFramesetter:[self highlightFramesetter] attributedString:highlightAttributedString textRange:textRange inRect:textRect context:c];
+            [self drawFramesetter:[self highlightFramesetter] attributedString:highlightAttributedString textRange:textRange inRect:textRect textRect:textRect context:c];
         } else {
-            [self drawFramesetter:[self framesetter] attributedString:self.renderedAttributedText textRange:textRange inRect:textRect context:c];
+            [self drawFramesetter:[self framesetter] attributedString:self.renderedAttributedText textRange:textRange inRect:rect textRect:textRect context:c];
         }  
         
         // If we adjusted the font size, set it back to its original size
@@ -1128,25 +1176,6 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
 }
 
 #pragma mark - UIView
-
-//- (CGSize)sizeThatFits:(CGSize)size {
-//    CGSize constraints = CGSizeMake(size.width, TTTFLOAT_MAX);
-//    
-//    if (self.numberOfLines == 1) {
-//        // If there is one line, the size that fits is the full width of the line
-//        constraints = CGSizeMake(TTTFLOAT_MAX, TTTFLOAT_MAX);
-//    }
-//    CGSize result = [super sizeThatFits:constraints];
-//    result.width = MIN(result.width, constraints.width);
-//    result.height = MIN(result.height, constraints.height);
-//    if (self.numberOfLines > 0 || _attributedText != nil) {
-//        CGRect textRect = [self textRectForBounds:CGRectMake(0,0,constraints.width, constraints.height) limitedToNumberOfLines:self.numberOfLines];
-//        
-//        textRect.size.height -= 2*textRect.origin.y;
-//        result =textRect.size;
-//    }
-//    return result;
-//}
 
 //- (CGSize)intrinsicContentSize {
 //    // There's an implicit width from the original UILabel implementation
@@ -1279,6 +1308,7 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
     [coder encodeObject:@(self.leading) forKey:NSStringFromSelector(@selector(leading))];
     [coder encodeObject:@(self.lineHeightMultiple) forKey:NSStringFromSelector(@selector(lineHeightMultiple))];
     [coder encodeUIEdgeInsets:self.textInsets forKey:NSStringFromSelector(@selector(textInsets))];
+    [coder encodeUIEdgeInsets:self.viewInsets forKey:NSStringFromSelector(@selector(viewInsets))];
     [coder encodeInteger:self.verticalAlignment forKey:NSStringFromSelector(@selector(verticalAlignment))];
     [coder encodeObject:self.truncationTokenString forKey:NSStringFromSelector(@selector(truncationTokenString))];
     [coder encodeObject:self.attributedText forKey:NSStringFromSelector(@selector(attributedText))];
@@ -1340,6 +1370,10 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
 
     if ([coder containsValueForKey:NSStringFromSelector(@selector(textInsets))]) {
         self.textInsets = [coder decodeUIEdgeInsetsForKey:NSStringFromSelector(@selector(textInsets))];
+    }
+    
+    if ([coder containsValueForKey:NSStringFromSelector(@selector(viewInsets))]) {
+        self.viewInsets = [coder decodeUIEdgeInsetsForKey:NSStringFromSelector(@selector(viewInsets))];
     }
 
     if ([coder containsValueForKey:NSStringFromSelector(@selector(verticalAlignment))]) {
