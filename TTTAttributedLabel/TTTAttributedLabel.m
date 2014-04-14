@@ -354,6 +354,11 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
     self.viewInsets = UIEdgeInsetsZero;
     
     self.links = [NSArray array];
+    
+    if (IOS_6) {
+        //without this encoding fails on ios7
+        [super setAttributedText:[[NSAttributedString alloc] initWithString:@""]];
+    }
 
     NSMutableDictionary *mutableLinkAttributes = [NSMutableDictionary dictionary];
     [mutableLinkAttributes setObject:[NSNumber numberWithBool:YES] forKey:(NSString *)kCTUnderlineStyleAttributeName];
