@@ -25,6 +25,7 @@
 #import <Availability.h>
 
 #define kTTTLineBreakWordWrapTextWidthScalingFactor (M_PI / M_E)
+#define IOS_6 ([[[UIDevice currentDevice] systemVersion] compare:@"6" options:NSNumericSearch] == NSOrderedDescending)
 
 static CGFloat const TTTFLOAT_MAX = 100000;
 
@@ -267,7 +268,12 @@ static inline NSAttributedString * NSAttributedStringBySettingColorFromContext(N
     [mutableAttributedString enumerateAttribute:(NSString *)kCTForegroundColorFromContextAttributeName inRange:NSMakeRange(0, [mutableAttributedString length]) options:0 usingBlock:^(id value, NSRange range, __unused BOOL *stop) {
         BOOL usesColorFromContext = (BOOL)value;
         if (usesColorFromContext) {
-            [mutableAttributedString addAttribute:(NSString *)kCTForegroundColorAttributeName value:color range:range];
+            if (IOS_6) {
+                [mutableAttributedString addAttribute:(NSString *)kCTForegroundColorAttributeName value:color range:range];
+            }
+            else {
+                [mutableAttributedString addAttribute:(NSString *)kCTForegroundColorAttributeName value:(id)color.CGColor range:range];
+            }
             [mutableAttributedString removeAttribute:(NSString *)kCTForegroundColorFromContextAttributeName range:range];
         }
     }];
