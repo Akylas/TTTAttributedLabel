@@ -330,6 +330,7 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
     NSString *_strokeWidthAttributeProperty;
     NSString *_cornerRadiusAttributeProperty;
     NSString *_paddingAttributeProperty;
+    NSString *_backgroundColorAttributeProperty;
 }
 
 @dynamic text;
@@ -397,6 +398,8 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
     self.strokeWidthAttributeProperty = kTTTBackgroundLineWidthAttributeName;
     self.cornerRadiusAttributeProperty = kTTTBackgroundCornerRadiusAttributeName;
     self.paddingAttributeProperty = kTTTBackgroundFillPaddingAttributeName;
+    self.strikeOutAttributeProperty = kTTTStrikeOutAttributeName;
+    self.backgroundColorAttributeProperty = kTTTBackgroundFillColorAttributeName;
 }
 
 - (void)dealloc {
@@ -854,7 +857,7 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
         for (id glyphRun in (__bridge NSArray *)CTLineGetGlyphRuns((__bridge CTLineRef)line)) {
             NSDictionary *attributes = (__bridge NSDictionary *)CTRunGetAttributes((__bridge CTRunRef) glyphRun);
            CGColorRef strokeColor = (__bridge CGColorRef)[attributes objectForKey:_strokeColorAttributeProperty];
-            CGColorRef fillColor = ((UIColor*)[attributes objectForKey:NSBackgroundColorAttributeName]).CGColor;
+            CGColorRef fillColor = ((UIColor*)[attributes objectForKey:_backgroundColorAttributeProperty]).CGColor;
             UIEdgeInsets fillPadding = [[attributes objectForKey:_paddingAttributeProperty] UIEdgeInsetsValue];
             CGFloat cornerRadius = [[attributes objectForKey:_cornerRadiusAttributeProperty] floatValue];
             CGFloat lineWidth = [self NSNumberFloat:[attributes objectForKey:_strokeWidthAttributeProperty] withDefault:0.0f];
@@ -929,10 +932,10 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
         
         for (id glyphRun in (__bridge NSArray *)CTLineGetGlyphRuns((__bridge CTLineRef)line)) {
             NSDictionary *attributes = (__bridge NSDictionary *)CTRunGetAttributes((__bridge CTRunRef) glyphRun);
-            BOOL strikeOut = [[attributes objectForKey:kTTTStrikeOutAttributeName] boolValue];
+            int strikeOut = [[attributes objectForKey:self.strikeOutAttributeProperty] intValue];
             NSInteger superscriptStyle = [[attributes objectForKey:(id)kCTSuperscriptAttributeName] integerValue];
             
-            if (strikeOut) {
+            if (strikeOut > 0) {
                 CGRect runBounds = CGRectZero;
                 CGFloat runAscent = 0.0f;
                 CGFloat runDescent = 0.0f;
@@ -1428,7 +1431,12 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
     [coder encodeUIEdgeInsets:self.viewInsets forKey:NSStringFromSelector(@selector(viewInsets))];
     [coder encodeInteger:self.verticalAlignment forKey:NSStringFromSelector(@selector(verticalAlignment))];
     [coder encodeObject:self.truncationTokenString forKey:NSStringFromSelector(@selector(truncationTokenString))];
-    [coder encodeObject:self.attributedText forKey:NSStringFromSelector(@selector(attributedText))];
+    [coder encodeObject:self.strokeColorAttributeProperty forKey:NSStringFromSelector(@selector(strokeColorAttributeProperty))];
+    [coder encodeObject:self.strokeWidthAttributeProperty forKey:NSStringFromSelector(@selector(strokeWidthAttributeProperty))];
+    [coder encodeObject:self.cornerRadiusAttributeProperty forKey:NSStringFromSelector(@selector(cornerRadiusAttributeProperty))];
+    [coder encodeObject:self.paddingAttributeProperty forKey:NSStringFromSelector(@selector(paddingAttributeProperty))];
+    [coder encodeObject:self.strikeOutAttributeProperty forKey:NSStringFromSelector(@selector(strikeOutAttributeProperty))];
+//    [coder encodeObject:_attributedText forKey:NSStringFromSelector(@selector(attributedText))];
 }
 
 - (id)initWithCoder:(NSCoder *)coder {
@@ -1508,6 +1516,23 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
     if ([coder containsValueForKey:NSStringFromSelector(@selector(attributedText))]) {
         self.attributedText = [coder decodeObjectForKey:NSStringFromSelector(@selector(attributedText))];
     }
+    
+    if ([coder containsValueForKey:NSStringFromSelector(@selector(strokeColorAttributeProperty))]) {
+        self.strokeColorAttributeProperty = [coder decodeObjectForKey:NSStringFromSelector(@selector(strokeColorAttributeProperty))];
+    }
+    if ([coder containsValueForKey:NSStringFromSelector(@selector(strokeWidthAttributeProperty))]) {
+        self.strokeWidthAttributeProperty = [coder decodeObjectForKey:NSStringFromSelector(@selector(strokeWidthAttributeProperty))];
+    }
+    if ([coder containsValueForKey:NSStringFromSelector(@selector(cornerRadiusAttributeProperty))]) {
+        self.cornerRadiusAttributeProperty = [coder decodeObjectForKey:NSStringFromSelector(@selector(cornerRadiusAttributeProperty))];
+    }
+    if ([coder containsValueForKey:NSStringFromSelector(@selector(paddingAttributeProperty))]) {
+        self.paddingAttributeProperty = [coder decodeObjectForKey:NSStringFromSelector(@selector(paddingAttributeProperty))];
+    }
+    if ([coder containsValueForKey:NSStringFromSelector(@selector(strikeOutAttributeProperty))]) {
+        self.strikeOutAttributeProperty = [coder decodeObjectForKey:NSStringFromSelector(@selector(strikeOutAttributeProperty))];
+    }
+    
 
     return self;
 }
