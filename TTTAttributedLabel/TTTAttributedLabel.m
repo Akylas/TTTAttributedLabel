@@ -965,7 +965,7 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
                 
 				switch (superscriptStyle) {
 					case 1:
-						runBounds.origin.y -= runAscent * 0.47f;
+						runBounds.origin.y -= runAscent * 0.5f;
 						break;
 					case -1:
 						runBounds.origin.y += runAscent * 0.25f;
@@ -987,10 +987,11 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
                 }
                 
                 CTFontRef font = CTFontCreateWithName((__bridge CFStringRef)self.font.fontName, self.font.pointSize, NULL);
-                CGContextSetLineWidth(c, CTFontGetUnderlineThickness(font));
+                CGFloat lineWidth  = CTFontGetUnderlineThickness(font)*2.0f;
+                CGContextSetLineWidth(c, lineWidth);
                 CFRelease(font);
 
-                CGFloat y = CGFloat_round(runBounds.origin.y + runBounds.size.height / 2.0f);
+                CGFloat y = CGFloat_round(runBounds.origin.y + runBounds.size.height / 2.0f + lineWidth/2.0f);
                 CGContextMoveToPoint(c, runBounds.origin.x, y);
                 CGContextAddLineToPoint(c, runBounds.origin.x + runBounds.size.width, y);
                 
