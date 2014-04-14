@@ -1422,14 +1422,14 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
         [coder encodeObject:self.linkAttributes forKey:NSStringFromSelector(@selector(linkAttributes))];
         [coder encodeObject:self.activeLinkAttributes forKey:NSStringFromSelector(@selector(activeLinkAttributes))];
     }
-    [coder encodeObject:@(self.shadowRadius) forKey:NSStringFromSelector(@selector(shadowRadius))];
-    [coder encodeObject:@(self.highlightedShadowRadius) forKey:NSStringFromSelector(@selector(highlightedShadowRadius))];
+    [coder encodeFloat:self.shadowRadius forKey:NSStringFromSelector(@selector(shadowRadius))];
+    [coder  encodeFloat:self.highlightedShadowRadius forKey:NSStringFromSelector(@selector(highlightedShadowRadius))];
     [coder encodeCGSize:self.highlightedShadowOffset forKey:NSStringFromSelector(@selector(highlightedShadowOffset))];
     [coder encodeObject:self.highlightedShadowColor forKey:NSStringFromSelector(@selector(highlightedShadowColor))];
-    [coder encodeObject:@(self.firstLineIndent) forKey:NSStringFromSelector(@selector(firstLineIndent))];
-    [coder encodeObject:@(self.leading) forKey:NSStringFromSelector(@selector(leading))];
-    [coder encodeObject:@(self.lineHeightMultiple) forKey:NSStringFromSelector(@selector(lineHeightMultiple))];
     [coder encodeObject:self.disabledColor forKey:NSStringFromSelector(@selector(disabledColor))];
+    [coder encodeFloat:self.firstLineIndent forKey:NSStringFromSelector(@selector(firstLineIndent))];
+    [coder encodeFloat:self.leading forKey:NSStringFromSelector(@selector(leading))];
+    [coder  encodeFloat:self.lineHeightMultiple forKey:NSStringFromSelector(@selector(lineHeightMultiple))];
     [coder encodeUIEdgeInsets:self.textInsets forKey:NSStringFromSelector(@selector(textInsets))];
     [coder encodeUIEdgeInsets:self.viewInsets forKey:NSStringFromSelector(@selector(viewInsets))];
     [coder encodeInteger:self.verticalAlignment forKey:NSStringFromSelector(@selector(verticalAlignment))];
