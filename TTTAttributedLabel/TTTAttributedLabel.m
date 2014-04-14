@@ -1252,14 +1252,15 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
         CGContextTranslateCTM(c, textRect.origin.x, rect.size.height - textRect.origin.y - textRect.size.height);
 
         // Second, trace the shadow before the actual text, if we have one
-        if (self.shadowColor && !self.highlighted) {
-            CGContextSetShadowWithColor(c, self.shadowOffset, self.shadowRadius, [self.shadowColor CGColor]);
-        } else if (self.highlightedShadowColor) {
+        if (highlighted && self.highlightedShadowColor) {
             CGContextSetShadowWithColor(c, self.highlightedShadowOffset, self.highlightedShadowRadius, [self.highlightedShadowColor CGColor]);
+        }
+        else if (self.shadowColor) {
+            CGContextSetShadowWithColor(c, self.shadowOffset, self.shadowRadius, [self.shadowColor CGColor]);
         }
         
         // Finally, draw the text or highlighted text itself (on top of the shadow, if there is one)
-        if (self.highlightedTextColor && self.highlighted) {
+        if (highlighted && self.highlightedTextColor) {
             NSMutableAttributedString *highlightAttributedString = [self.renderedAttributedText mutableCopy];
             [highlightAttributedString addAttribute:(__bridge NSString *)kCTForegroundColorAttributeName value:(id)[self.highlightedTextColor CGColor] range:NSMakeRange(0, highlightAttributedString.length)];
             
