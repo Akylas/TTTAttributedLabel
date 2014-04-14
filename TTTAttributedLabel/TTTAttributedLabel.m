@@ -332,7 +332,6 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
     self.multipleTouchEnabled = NO;
 
     self.textInsets = UIEdgeInsetsZero;
-    self.viewInsets = UIEdgeInsetsZero;
     
     self.lineHeightMultiple = 1.0f;
 
@@ -797,13 +796,13 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
                 CTLineRef truncationLine = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)truncationString);
 
                 // Truncate the line in case it is too long.
-                CTLineRef truncatedLine = CTLineCreateTruncatedLine(truncationLine, rect.size.width, truncationType, truncationToken);
+                CTLineRef truncatedLine = CTLineCreateTruncatedLine(truncationLine, textRect.size.width, truncationType, truncationToken);
                 if (!truncatedLine) {
                     // If the line is not as wide as the truncationToken, truncatedLine is NULL
                     truncatedLine = CFRetain(truncationToken);
                 }
 
-                CGFloat penOffset = (CGFloat)CTLineGetPenOffsetForFlush(truncatedLine, flushFactor, rect.size.width);
+                CGFloat penOffset = (CGFloat)CTLineGetPenOffsetForFlush(truncatedLine, flushFactor, textRect.size.width);
                 CGContextSetTextPosition(c, penOffset, lineOrigin.y - descent - self.font.descender);
 
                 CTLineDraw(truncatedLine, c);
@@ -841,13 +840,13 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
                context:(CGContextRef)c
 {
     CGContextSaveGState(c);
-    CGContextTranslateCTM(c, -_viewInsets.left, -_viewInsets.top);
+    CGContextTranslateCTM(c, -_textInsets.left, -_textInsets.top);
     NSArray *lines = (__bridge NSArray *)CTFrameGetLines(frame);
     CGPoint origins[[lines count]];
     CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), origins);
 
     // Compensate for y-offset of text rect from vertical positioning
-    CGFloat yOffset = rect.origin.y - textRect.origin.y + _viewInsets.top;
+    CGFloat yOffset = rect.origin.y - textRect.origin.y + _textInsets.top;
     
     CFIndex lineIndex = 0;
     for (id line in lines) {
@@ -1208,7 +1207,7 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
 - (void)drawTextInRect:(CGRect)rect {
     BOOL highlighted = self.highlighted && self.enabled;
     if (_attributedText == nil) {
-        CGRect rectWithPadding = UIEdgeInsetsInsetRect(rect, _viewInsets);
+        CGRect rectWithPadding = UIEdgeInsetsInsetRect(rect, _textInsets);
         CGRect textRect = [super textRectForBounds:rectWithPadding limitedToNumberOfLines:self.numberOfLines];
         CGFloat yOffset = 0.0f;
         if (textRect.size.height < rectWithPadding.size.height) {
@@ -1241,7 +1240,7 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
         CGSize maxSize = (self.numberOfLines > 1) ? CGSizeMake(TTTFLOAT_MAX, TTTFLOAT_MAX) : CGSizeZero;
 
         CGFloat textWidth = [self sizeThatFits:maxSize].width;
-        CGFloat availableWidth = (self.frame.size.width - _viewInsets.left - _viewInsets.right) * self.numberOfLines;
+        CGFloat availableWidth = self.frame.size.width * self.numberOfLines;
         if (self.numberOfLines > 1 && self.lineBreakMode == TTTLineBreakByWordWrapping) {
             textWidth *= kTTTLineBreakWordWrapTextWidthScalingFactor;
         }
@@ -1258,7 +1257,7 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
         CGContextSetTextMatrix(c, CGAffineTransformIdentity);
 
         // Inverts the CTM to match iOS coordinates (otherwise text draws upside-down; Mac OS's system is different)
-        CGRect rectWithPadding = UIEdgeInsetsInsetRect(rect, _viewInsets);
+        CGRect rectWithPadding = UIEdgeInsetsInsetRect(rect, _textInsets);
         CGContextTranslateCTM(c, 0.0f, rect.size.height);
         CGContextScaleCTM(c, 1.0f, -1.0f);
         
@@ -1318,11 +1317,23 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
 #pragma mark - UIView
 
 - (CGSize)sizeThatFits:(CGSize)size {
-    if (!_attributedText) {
-        return [super sizeThatFits:size];
-    }
     
-    return CTFramesetterSuggestFrameSizeForAttributedStringWithConstraints([self framesetter], _attributedText, size, (NSUInteger)self.numberOfLines);
+    size.width -= _textInsets.left + _textInsets.right;
+    size.height -= _textInsets.top + _textInsets.bottom;
+    
+    CGSize result;
+    if (!_attributedText) {
+        result = [super sizeThatFits:size];
+    }
+    else {
+        result = CTFramesetterSuggestFrameSizeForAttributedStringWithConstraints([self framesetter], _attributedText, size, (NSUInteger)self.numberOfLines);
+    }
+    if (size.width > 0) result.width = MIN(result.width,  size.width);
+    if (size.height > 0) result.height = MIN(result.height,  size.height);
+    
+    result.width += _textInsets.left+ _textInsets.right;
+    result.height += _textInsets.top + _textInsets.bottom;
+    return result;
 }
 
 - (CGSize)intrinsicContentSize {
@@ -1494,7 +1505,6 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
     [coder encodeFloat:self.leading forKey:NSStringFromSelector(@selector(leading))];
     [coder  encodeFloat:self.lineHeightMultiple forKey:NSStringFromSelector(@selector(lineHeightMultiple))];
     [coder encodeUIEdgeInsets:self.textInsets forKey:NSStringFromSelector(@selector(textInsets))];
-    [coder encodeUIEdgeInsets:self.viewInsets forKey:NSStringFromSelector(@selector(viewInsets))];
     [coder encodeInteger:self.verticalAlignment forKey:NSStringFromSelector(@selector(verticalAlignment))];
     [coder encodeObject:self.truncationTokenString forKey:NSStringFromSelector(@selector(truncationTokenString))];
     [coder encodeObject:self.strokeColorAttributeProperty forKey:NSStringFromSelector(@selector(strokeColorAttributeProperty))];
@@ -1581,10 +1591,6 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
     
     if ([coder containsValueForKey:NSStringFromSelector(@selector(textInsets))]) {
         self.textInsets = [coder decodeUIEdgeInsetsForKey:NSStringFromSelector(@selector(textInsets))];
-    }
-    
-    if ([coder containsValueForKey:NSStringFromSelector(@selector(viewInsets))]) {
-        self.viewInsets = [coder decodeUIEdgeInsetsForKey:NSStringFromSelector(@selector(viewInsets))];
     }
 
     if ([coder containsValueForKey:NSStringFromSelector(@selector(verticalAlignment))]) {
