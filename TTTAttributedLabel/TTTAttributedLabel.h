@@ -190,7 +190,7 @@ extern NSString * const kTTTBackgroundCornerRadiusAttributeName;
 /**
  The space in points added between lines within the paragraph. This value is always nonnegative and is 0.0 by default.
  */
-@property (nonatomic, assign) CGFloat lineSpacing;
+@property (nonatomic, assign) CGFloat paragraphLineSpacing;
 
 /**
  The minimum line height within the paragraph. If the value is 0.0, the minimum line height is set to the line height of the `font`. 0.0 by default.

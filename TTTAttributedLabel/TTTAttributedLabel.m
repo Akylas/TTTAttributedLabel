@@ -169,7 +169,7 @@ static inline NSDictionary * NSAttributedStringAttributesFromLabel(TTTAttributed
 
         NSMutableParagraphStyle *paragraphStyle = [[NSMutableParagraphStyle alloc] init];
         paragraphStyle.alignment = label.textAlignment;
-        paragraphStyle.lineSpacing = label.lineSpacing;
+        paragraphStyle.lineSpacing = label.paragraphLineSpacing;
         paragraphStyle.minimumLineHeight = label.minimumLineHeight > 0 ? label.minimumLineHeight : label.font.lineHeight * label.lineHeightMultiple;
         paragraphStyle.maximumLineHeight = label.maximumLineHeight > 0 ? label.maximumLineHeight : label.font.lineHeight * label.lineHeightMultiple;
         paragraphStyle.lineHeightMultiple = label.lineHeightMultiple;
@@ -192,7 +192,7 @@ static inline NSDictionary * NSAttributedStringAttributesFromLabel(TTTAttributed
         [mutableAttributes setObject:@(label.kern) forKey:(NSString *)kCTKernAttributeName];
 
         CTTextAlignment alignment = CTTextAlignmentFromTTTTextAlignment(label.textAlignment);
-        CGFloat lineSpacing = label.lineSpacing;
+        CGFloat lineSpacing = label.paragraphLineSpacing;
         CGFloat minimumLineHeight = label.minimumLineHeight * label.lineHeightMultiple;
         CGFloat maximumLineHeight = label.maximumLineHeight * label.lineHeightMultiple;
         CGFloat lineSpacingAdjustment = CGFloat_ceil(label.font.lineHeight - label.font.ascender + label.font.descender);
@@ -360,6 +360,8 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
     self.lineHeightMultiple = 1.0f;
 
     self.links = [NSArray array];
+    
+    self.paragraphLineSpacing = 0.0f;
     
     if (IOS_6) {
         //without this encoding fails on ios7
@@ -551,11 +553,11 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
 }
 
 - (CGFloat)leading {
-    return self.lineSpacing;
+    return self.paragraphLineSpacing;
 }
 
 - (void)setLeading:(CGFloat)leading {
-    self.lineSpacing = leading;
+    self.paragraphLineSpacing = leading;
 }
 
 #pragma mark -
@@ -940,7 +942,7 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
                         xOffset = CTLineGetOffsetForStringIndex((__bridge CTLineRef)line, glyphRange.location, NULL);
                         break;
                 }
-                runBounds.origin.x = penOffset + origins[lineIndex].x + textRect.origin.x + xOffset - fillPadding.left;
+                runBounds.origin.x = penOffset + textRect.origin.x + xOffset - fillPadding.left;
                 runBounds.origin.y = origins[lineIndex].y + textRect.origin.y + yOffset - fillPadding.bottom;
                 runBounds.origin.y -= runDescent;
 
@@ -1651,8 +1653,8 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
     [coder encodeFloat:self.kern forKey:NSStringFromSelector(@selector(kern))];
     [coder encodeObject:self.disabledColor forKey:NSStringFromSelector(@selector(disabledColor))];
     [coder encodeFloat:self.firstLineIndent forKey:NSStringFromSelector(@selector(firstLineIndent))];
-    [coder encodeFloat:self.leading forKey:NSStringFromSelector(@selector(lineSpacing))];
-    [coder  encodeFloat:self.lineHeightMultiple forKey:NSStringFromSelector(@selector(lineHeightMultiple))];
+    [coder encodeFloat:self.paragraphLineSpacing forKey:NSStringFromSelector(@selector(lineSpacing))];
+    [coder encodeFloat:self.lineHeightMultiple forKey:NSStringFromSelector(@selector(lineHeightMultiple))];
     [coder encodeUIEdgeInsets:self.textInsets forKey:NSStringFromSelector(@selector(textInsets))];
     [coder encodeInteger:self.verticalAlignment forKey:NSStringFromSelector(@selector(verticalAlignment))];
     [coder encodeObject:self.truncationTokenString forKey:NSStringFromSelector(@selector(truncationTokenString))];
@@ -1723,7 +1725,7 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
     }
 
     if ([coder containsValueForKey:NSStringFromSelector(@selector(lineSpacing))]) {
-        self.lineSpacing = [[coder decodeObjectForKey:NSStringFromSelector(@selector(lineSpacing))] floatValue];
+        self.paragraphLineSpacing = [[coder decodeObjectForKey:NSStringFromSelector(@selector(lineSpacing))] floatValue];
     }
 
     if ([coder containsValueForKey:NSStringFromSelector(@selector(minimumLineHeight))]) {
