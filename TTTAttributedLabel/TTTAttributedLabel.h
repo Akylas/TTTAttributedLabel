@@ -143,7 +143,7 @@ IB_DESIGNABLE
  An array of `NSTextCheckingResult` objects for links detected or manually added to the label text.
  */
 @property (readonly, nonatomic, strong) NSArray *links;
-- (void)setLinks:(NSArray *)links;
+- (void)setLinkModels:(NSArray *)links;
 
 /**
  A dictionary containing the default `NSAttributedString` attributes to be applied to links detected or manually added to the label text. The default link style is blue and underlined.
@@ -162,7 +162,7 @@ IB_DESIGNABLE
  */
 @property (nonatomic, strong) NSDictionary *inactiveLinkAttributes;
 
-@property (readonly, nonatomic, strong) NSTextCheckingResult *activeLink;
+@property (readonly, nonatomic, strong) TTTAttributedLabelLink *activeLink;
 
 -(void)initLinksStyle;
 
@@ -341,7 +341,7 @@ IB_DESIGNABLE
 afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString *(^)(NSMutableAttributedString *mutableAttributedString))block;
 
 - (CFIndex)characterIndexAtPoint:(CGPoint)p;
-- (NSTextCheckingResult *)linkAtPoint:(CGPoint)p;
+- (TTTAttributedLabelLink *)linkAtPoint:(CGPoint)p;
 
 ///----------------------------------
 ///------------------------------------
