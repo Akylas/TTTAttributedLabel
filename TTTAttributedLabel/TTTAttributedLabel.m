@@ -439,10 +439,7 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
     self.activeLinkAttributes = [NSDictionary dictionaryWithDictionary:mutableActiveLinkAttributes];
     self.inactiveLinkAttributes = [NSDictionary dictionaryWithDictionary:mutableInactiveLinkAttributes];
     _extendsLinkTouchArea = NO;
-    _longPressGestureRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self
-                                                                                action:@selector(longPressGestureDidFire:)];
-    self.longPressGestureRecognizer.delegate = self;
-    [self addGestureRecognizer:self.longPressGestureRecognizer];
+    
 }
 
 - (void)commonInit {
@@ -549,7 +546,7 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
 
 - (void)setLinkModels:(NSArray *)linkModels {
     _linkModels = linkModels;
-    
+    [self updateLongGestureState];
     self.accessibilityElements = nil;
 }
 
@@ -673,6 +670,22 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
     [self addLinks:@[link]];
 }
 
+-(void)updateLongGestureState {
+    if ([self.linkModels count] > 0) {
+        if (!_longPressGestureRecognizer) {
+            _longPressGestureRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self
+                                                                                        action:@selector(longPressGestureDidFire:)];
+            self.longPressGestureRecognizer.delegate = self;
+            [self addGestureRecognizer:self.longPressGestureRecognizer];
+        }
+    } else {
+        if (_longPressGestureRecognizer) {
+            [self removeGestureRecognizer:_longPressGestureRecognizer];
+            _longPressGestureRecognizer = nil;
+        }
+    }
+}
+
 - (void)addLinks:(NSArray *)links {
     NSMutableArray *mutableLinkModels = [NSMutableArray arrayWithArray:self.linkModels];
     
@@ -690,6 +703,7 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
     [mutableLinkModels addObjectsFromArray:links];
     
     self.linkModels = [NSArray arrayWithArray:mutableLinkModels];
+    [self updateLongGestureState];
 }
 
 - (TTTAttributedLabelLink *)addLinkWithTextCheckingResult:(NSTextCheckingResult *)result
@@ -1253,6 +1267,7 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
     }
     
     self.attributedText = text;
+    [super setText:nil];
     self.activeLink = nil;
 
     self.linkModels = [NSArray array];
@@ -1371,18 +1386,26 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
     
     // Redraw to allow any ColorFromContext attributes a chance to update
     if (_attributedText && textColor != oldTextColor) {
-        self.text = self.text; //to update colors
+        if (self.attributedText) {
+            self.text = self.attributedText; //to update colors
+        } else {
+            self.text = self.text; //to update colors
+        }
         [self setNeedsFramesetter];
         [self setNeedsDisplay];
     }
 }
 
 - (void)setDisabledColor:(UIColor *)textColor {
-    UIColor *oldTextColor = self.disabledColor;
+//    UIColor *oldTextColor = self.disabledColor;
     _disabledColor = textColor;
     
-    if (textColor && self.text) {
-        self.text = self.text;
+    if (textColor && (self.text || self.attributedText)) {
+        if (self.attributedText) {
+            self.text = self.attributedText; //to update colors
+        } else {
+            self.text = self.text; //to update colors
+        }
     }
     if (!self.enabled) {
         [self setNeedsFramesetter];
@@ -1511,6 +1534,16 @@ afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString
                     break;
             }
             insetRect.size.height = textRect.size.height;
+        } else if (self.font.capHeight > textRect.size.height) {
+            switch (self.verticalAlignment) {
+                case TTTAttributedLabelVerticalAlignmentBottom:
+                    yOffset = textRect.origin.y;
+                    break;
+                case TTTAttributedLabelVerticalAlignmentTop:
+                    yOffset = -textRect.origin.y;
+                default:
+                    break;
+            }
         }
         insetRect.size.height *= scaleFactor;
         CGContextRef c = UIGraphicsGetCurrentContext();
@@ -1852,9 +1885,15 @@ NSMutableAttributedString *fullString = [[NSMutableAttributedString alloc] initW
 #pragma mark - UIGestureRecognizerDelegate
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
-    return [self containslinkAtPoint:[touch locationInView:self]];
+    if (gestureRecognizer == _longPressGestureRecognizer) {
+        return [self containslinkAtPoint:[touch locationInView:self]];
+    }
+    return YES;
 }
-
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
+{
+    return YES;
+}
 #pragma mark - UILongPressGestureRecognizer
 
 - (void)longPressGestureDidFire:(UILongPressGestureRecognizer *)sender {
@@ -2004,6 +2043,7 @@ NSMutableAttributedString *fullString = [[NSMutableAttributedString alloc] initW
 
     if ([coder containsValueForKey:NSStringFromSelector(@selector(linkModels))]) {
         self.linkModels = [coder decodeObjectForKey:NSStringFromSelector(@selector(linkModels))];
+        [self updateLongGestureState];
     }
 
     if ([coder containsValueForKey:NSStringFromSelector(@selector(shadowRadius))]) {
