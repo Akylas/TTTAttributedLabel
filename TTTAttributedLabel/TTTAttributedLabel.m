@@ -896,7 +896,6 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
     CGPathAddRect(path, NULL, textRect);
     CTFrameRef frame = CTFramesetterCreateFrame(framesetter, textRange, path, NULL);
     
-    [self drawBackground:frame inRect:rect textRect:textRect context:c];
     
     CFArrayRef lines = CTFrameGetLines(frame);
     if (lines == nil) {
@@ -912,6 +911,8 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
     CGPoint lineOrigins[numberOfLines];
     CTFrameGetLineOrigins(frame, CFRangeMake(0, numberOfLines), lineOrigins);
     
+    [self drawBackground:lines origins:lineOrigins inRect:rect textRect:textRect context:c];
+
     for (CFIndex lineIndex = 0; lineIndex < numberOfLines; lineIndex++) {
         CGPoint lineOrigin = lineOrigins[lineIndex];
         CGContextSetTextPosition(c, lineOrigin.x, lineOrigin.y);
@@ -1011,6 +1012,9 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
         } else {
             // Adjust pen offset for flush depending on text alignment
             CGFloat penOffset = (CGFloat)CTLineGetPenOffsetForFlush(line, flushFactor, textRect.size.width);
+            CFRange lineRange = CTLineGetStringRange(line);
+            NSRange range = NSMakeRange(lineRange.location, lineRange.length);
+            NSString *lineString = [[attributedString string] substringWithRange:range];
             CGContextSetTextPosition(c, penOffset, lineOrigin.y - descent - self.font.descender);
             CTLineDraw(line, c);
         }
@@ -1030,19 +1034,20 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
     return defaultValue;
 }
 
-- (void)drawBackground:(CTFrameRef)frame
+- (void)drawBackground:(CFArrayRef)lines
+               origins:(CGPoint*)origins
                 inRect:(CGRect)rect
               textRect:(CGRect)textRect
                context:(CGContextRef)c
 {
     CGContextSaveGState(c);
     CGContextTranslateCTM(c, -_textInsets.left, -_textInsets.top);
-    NSArray *lines = (__bridge NSArray *)CTFrameGetLines(frame);
-    CGPoint origins[[lines count]];
-    CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), origins);
+//    NSArray *lines = (__bridge NSArray *)CTFrameGetLines(frame);
+//    CGPoint origins[[lines count]];
+//    CTFrameGetLineOrigins(frame, CFRangeMake(0, 0), origins);
 
     CFIndex lineIndex = 0;
-    for (id line in lines) {
+    for (id line in (__bridge NSArray *)lines) {
         CGFloat ascent = 0.0f, descent = 0.0f, leading = 0.0f;
         CGFloat width = (CGFloat)CTLineGetTypographicBounds((__bridge CTLineRef)line, &ascent, &descent, &leading) ;
 
@@ -1929,7 +1934,7 @@ NSMutableAttributedString *fullString = [[NSMutableAttributedString alloc] initW
     [coder encodeInteger:self.verticalAlignment forKey:NSStringFromSelector(@selector(verticalAlignment))];
 
     [coder encodeObject:self.attributedTruncationToken forKey:NSStringFromSelector(@selector(attributedTruncationToken))];
-    [coder encodeObject:self.truncationTokenString forKey:NSStringFromSelector(@selector(truncationTokenString))];
+//    [coder encodeObject:self.truncationTokenString forKey:NSStringFromSelector(@selector(truncationTokenString))];
     [coder encodeObject:self.strokeColorAttributeProperty forKey:NSStringFromSelector(@selector(strokeColorAttributeProperty))];
     [coder encodeObject:self.strokeWidthAttributeProperty forKey:NSStringFromSelector(@selector(strokeWidthAttributeProperty))];
     [coder encodeObject:self.cornerRadiusAttributeProperty forKey:NSStringFromSelector(@selector(cornerRadiusAttributeProperty))];
