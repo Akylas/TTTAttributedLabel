@@ -1014,7 +1014,7 @@ static inline CGSize CTFramesetterSuggestFrameSizeForAttributedStringWithConstra
             CGFloat penOffset = (CGFloat)CTLineGetPenOffsetForFlush(line, flushFactor, textRect.size.width);
             CFRange lineRange = CTLineGetStringRange(line);
             NSRange range = NSMakeRange(lineRange.location, lineRange.length);
-            NSString *lineString = [[attributedString string] substringWithRange:range];
+//            NSString *lineString = [[attributedString string] substringWithRange:range];
             CGContextSetTextPosition(c, penOffset, lineOrigin.y - descent - self.font.descender);
             CTLineDraw(line, c);
         }
